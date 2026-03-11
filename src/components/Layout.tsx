@@ -30,6 +30,9 @@ export const Layout = ({ children }: LayoutProps) => {
             <NavLink to="/seine" className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")}>
               塞納河體驗
             </NavLink>
+            <NavLink to="/montmartre" className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")}>
+              蒙馬特
+            </NavLink>
           </nav>
         </div>
       </header>

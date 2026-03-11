@@ -28,6 +28,7 @@ describe("App", () => {
     expect(screen.getByText("羅浮宮")).toBeInTheDocument();
     expect(screen.getByText("艾菲爾鐵塔")).toBeInTheDocument();
     expect(screen.getByText("塞納河體驗")).toBeInTheDocument();
+    expect(screen.getByText("蒙馬特")).toBeInTheDocument();
 
     expect(
       screen.getByText(/Paris Moments Studio/)
@@ -58,6 +59,14 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders Montmartre page on /montmartre route", () => {
+    renderWithRoute("/montmartre");
+
+    expect(
+      screen.getByText("蒙馬特 · 街區故事與品牌個性")
+    ).toBeInTheDocument();
+  });
+
   it("navigates between pages via nav links", async () => {
     const user = userEvent.setup();
     renderWithRoute("/");
@@ -75,6 +84,11 @@ describe("App", () => {
     await user.click(screen.getByRole("link", { name: "塞納河體驗" }));
     expect(
       screen.getByText("塞納河 · 流動中的內容行銷")
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("link", { name: "蒙馬特" }));
+    expect(
+      screen.getByText("蒙馬特 · 街區故事與品牌個性")
     ).toBeInTheDocument();
   });
 });
