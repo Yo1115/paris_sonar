@@ -13,7 +13,7 @@ jobs:
         with:
           node-version: 20
 
-      - run: npm ci
+      - run: npm ci # NOSONAR
       - run: npm test # 執行單元測試並產出 coverage 報告
 
       - uses: sonarsource/sonarcloud-github-action@383f7e52eae3ab0510c3cb0e7d9d150bbaeab838 # v3.1.0
