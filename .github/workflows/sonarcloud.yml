@@ -20,3 +20,62 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Wait for SonarCloud Quality Gate
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          set -e
+
+          if [ ! -f ".scannerwork/report-task.txt" ]; then
+            echo "SonarCloud report-task.txt not found. Cannot check Quality Gate."
+            exit 1
+          fi
+
+          ceTaskUrl=$(grep -o 'ceTaskUrl=.*' .scannerwork/report-task.txt | cut -d'=' -f2)
+          if [ -z "$ceTaskUrl" ]; then
+            echo "Cannot find ceTaskUrl in report-task.txt"
+            exit 1
+          fi
+
+          echo "Checking SonarCloud background task status..."
+          attempts=30
+          sleep_time=10
+
+          while [ "$attempts" -gt 0 ]; do
+            ceResponse=$(curl -s -u "$SONAR_TOKEN:" "$ceTaskUrl")
+            ceStatus=$(echo "$ceResponse" | jq -r '.task.status')
+
+            echo "Current SonarCloud task status: $ceStatus"
+
+            if [ "$ceStatus" = "SUCCESS" ]; then
+              analysisId=$(echo "$ceResponse" | jq -r '.task.analysisId')
+              if [ -z "$analysisId" ] || [ "$analysisId" = "null" ]; then
+                echo "No analysisId found in task response."
+                exit 1
+              fi
+
+              qgResponse=$(curl -s -u "$SONAR_TOKEN:" "https://sonarcloud.io/api/qualitygates/project_status?analysisId=$analysisId")
+              qgStatus=$(echo "$qgResponse" | jq -r '.projectStatus.status')
+
+              echo "SonarCloud Quality Gate status: $qgStatus"
+
+              if [ "$qgStatus" != "OK" ]; then
+                echo "Quality Gate failed."
+                exit 1
+              fi
+
+              echo "Quality Gate passed."
+              exit 0
+            elif [ "$ceStatus" = "FAILED" ]; then
+              echo "SonarCloud background task failed."
+              exit 1
+            fi
+
+            attempts=$((attempts-1))
+            echo "Waiting for SonarCloud task to complete... ($attempts attempts left)"
+            sleep "$sleep_time"
+          done
+
+          echo "Timed out waiting for SonarCloud Quality Gate."
+          exit 1
