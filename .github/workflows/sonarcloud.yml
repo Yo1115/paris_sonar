@@ -80,3 +80,39 @@ jobs:
 
           echo "Timed out waiting for SonarCloud Quality Gate."
           exit 1
+
+      - name: Notify Power Automate
+        if: ${{ always() }}
+        continue-on-error: true
+        env:
+          POWER_AUTOMATE_URL: ${{ secrets.POWER_AUTOMATE_URL }}
+          RESPONSIBLE_EMAIL: ${{ vars.RESPONSIBLE_EMAIL }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${POWER_AUTOMATE_URL:-}" ]; then
+            echo "POWER_AUTOMATE_URL secret is not set."
+            exit 1
+          fi
+
+          if [ -z "${RESPONSIBLE_EMAIL:-}" ]; then
+            echo "RESPONSIBLE_EMAIL repository variable is not set."
+            exit 1
+          fi
+
+          encode() {
+            jq -rn --arg v "$1" '$v|@uri'
+          }
+
+          runUrl="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          separator='?'
+          case "$POWER_AUTOMATE_URL" in
+            *\?*) separator='&' ;;
+          esac
+
+          notifyUrl="${POWER_AUTOMATE_URL}${separator}ownerEmail=$(encode "$RESPONSIBLE_EMAIL")&status=$(encode "$JOB_STATUS")&repo=$(encode "${{ github.repository }}")&branch=$(encode "${{ github.ref_name }}")&workflow=$(encode "${{ github.workflow }}")&runUrl=$(encode "$runUrl")"
+
+          echo "Sending Power Automate notification..."
+          curl -fsS "$notifyUrl" > /dev/null
+          echo "Power Automate notification sent."
