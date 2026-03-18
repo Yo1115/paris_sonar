@@ -30,6 +30,7 @@ on:
 jobs:
   notify:
     runs-on: ubuntu-latest
+    environment: RESPONSIBLE_EMAIL
     steps:
       - name: Send notification to Power Automate
         env:
@@ -37,6 +38,13 @@ jobs:
         run: |
           NOTIFY_EMAILS='${{ inputs.notify_emails }}'
           DETAILS_JSON='${{ inputs.details_json }}'
+          FALLBACK_EMAIL='${{ vars.RESPONSIBLE_EMAIL }}'
+
+          if echo "$NOTIFY_EMAILS" | jq -e 'type == "array" and length == 0' > /dev/null; then
+            if [ -n "$FALLBACK_EMAIL" ]; then
+              NOTIFY_EMAILS=$(jq -cn --arg email "$FALLBACK_EMAIL" '[$email]')
+            fi
+          fi
 
           if ! echo "$NOTIFY_EMAILS" | jq -e 'type == "array" and all(.[]; type == "string" and length > 0)' > /dev/null; then
             echo "::warning::notify_emails must be a JSON array of non-empty strings. Received: $NOTIFY_EMAILS"
