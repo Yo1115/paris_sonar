@@ -83,12 +83,12 @@ jobs:
 
   notify-sonar:
     needs: sonarcloud
-    if: ${{ always() && needs.sonarcloud.result == 'failure' }}
+    if: ${{ always() }}
     uses: ./.github/workflows/notify-pa.yml
     with:
       event_type: security_scan
-      status: failure
-      summary: "SonarCloud 掃描發現問題，請檢查 Quality Gate"
+      status: ${{ needs.sonarcloud.result == 'success' && 'success' || needs.sonarcloud.result == 'failure' && 'failure' || 'warning' }}
+      summary: "SonarCloud scan completed - ${{ needs.sonarcloud.result }}"
       notify_emails: '["security-lead@company.com", "tech-lead@company.com"]'
       details_json: '{"scan_tool":"sonarcloud","commit_sha":"${{ github.sha }}"}'
     secrets:
