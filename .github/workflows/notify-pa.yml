@@ -1,0 +1,75 @@
+name: Notify Power Automate
+
+on:
+  workflow_call:
+    inputs:
+      event_type:
+        required: true
+        type: string
+      status:
+        required: true
+        type: string
+      environment:
+        required: false
+        default: ""
+        type: string
+      summary:
+        required: true
+        type: string
+      notify_emails:
+        required: true
+        type: string
+      details_json:
+        required: false
+        default: "{}"
+        type: string
+    secrets:
+      PA_WEBHOOK_URL:
+        required: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send notification to Power Automate
+        env:
+          PA_URL: ${{ secrets.PA_WEBHOOK_URL }}
+        run: |
+          PAYLOAD=$(cat <<'EOF'
+          {
+            "event_type": "${{ inputs.event_type }}",
+            "status": "${{ inputs.status }}",
+            "repository": "${{ github.repository }}",
+            "branch": "${{ github.ref_name }}",
+            "environment": "${{ inputs.environment }}",
+            "actor": "${{ github.actor }}",
+            "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "summary": "${{ inputs.summary }}",
+            "notify_emails": ${{ inputs.notify_emails }},
+            "details": ${{ inputs.details_json }}
+          }
+          EOF
+          )
+
+          set +e
+          HTTP_CODE=$(curl -s -o response.txt -w "%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "$PA_URL")
+          CURL_EXIT=$?
+          set -e
+
+          if [ "$CURL_EXIT" -ne 0 ]; then
+            echo "::warning::Power Automate notification request failed (curl exit $CURL_EXIT)"
+            exit 0
+          fi
+
+          echo "Power Automate response: $HTTP_CODE"
+          if [ -f response.txt ]; then
+            cat response.txt
+          fi
+
+          if [ "$HTTP_CODE" -ge 400 ]; then
+            echo "::warning::Power Automate notification failed with HTTP $HTTP_CODE"
+          fi

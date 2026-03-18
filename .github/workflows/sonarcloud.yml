@@ -81,38 +81,15 @@ jobs:
           echo "Timed out waiting for SonarCloud Quality Gate."
           exit 1
 
-      - name: Notify Power Automate
-        if: ${{ always() }}
-        continue-on-error: true
-        env:
-          POWER_AUTOMATE_URL: ${{ secrets.POWER_AUTOMATE_URL }}
-          RESPONSIBLE_EMAIL: ${{ vars.RESPONSIBLE_EMAIL }}
-          JOB_STATUS: ${{ job.status }}
-        run: |
-          set -euo pipefail
-
-          if [ -z "${POWER_AUTOMATE_URL:-}" ]; then
-            echo "POWER_AUTOMATE_URL secret is not set."
-            exit 1
-          fi
-
-          if [ -z "${RESPONSIBLE_EMAIL:-}" ]; then
-            echo "RESPONSIBLE_EMAIL repository variable is not set."
-            exit 1
-          fi
-
-          encode() {
-            jq -rn --arg v "$1" '$v|@uri'
-          }
-
-          runUrl="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          separator='?'
-          case "$POWER_AUTOMATE_URL" in
-            *\?*) separator='&' ;;
-          esac
-
-          notifyUrl="${POWER_AUTOMATE_URL}${separator}ownerEmail=$(encode "$RESPONSIBLE_EMAIL")&status=$(encode "$JOB_STATUS")&repo=$(encode "${{ github.repository }}")&branch=$(encode "${{ github.ref_name }}")&workflow=$(encode "${{ github.workflow }}")&runUrl=$(encode "$runUrl")"
-
-          echo "Sending Power Automate notification..."
-          curl -fsS "$notifyUrl" > /dev/null
-          echo "Power Automate notification sent."
+  notify-sonar:
+    needs: sonarcloud
+    if: ${{ always() && needs.sonarcloud.result == 'failure' }}
+    uses: ./.github/workflows/notify-pa.yml
+    with:
+      event_type: security_scan
+      status: failure
+      summary: "SonarCloud 掃描發現問題，請檢查 Quality Gate"
+      notify_emails: '["security-lead@company.com", "tech-lead@company.com"]'
+      details_json: '{"scan_tool":"sonarcloud","commit_sha":"${{ github.sha }}"}'
+    secrets:
+      PA_WEBHOOK_URL: ${{ secrets.PA_WEBHOOK_URL }}
