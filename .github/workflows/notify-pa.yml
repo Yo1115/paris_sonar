@@ -30,15 +30,21 @@ on:
 jobs:
   notify:
     runs-on: ubuntu-latest
-    environment: RESPONSIBLE_EMAIL
+    environment: ${{ (inputs.environment == 'dev' || inputs.environment == 'test' || inputs.environment == 'prod') && inputs.environment || 'prod' }}
     steps:
       - name: Send notification to Power Automate
         env:
           PA_URL: ${{ secrets.PA_WEBHOOK_URL }}
         run: |
+          REQUESTED_ENV='${{ inputs.environment }}'
+          TARGET_ENV='${{ (inputs.environment == 'dev' || inputs.environment == 'test' || inputs.environment == 'prod') && inputs.environment || 'prod' }}'
           NOTIFY_EMAILS='${{ inputs.notify_emails }}'
           DETAILS_JSON='${{ inputs.details_json }}'
           FALLBACK_EMAIL='${{ vars.RESPONSIBLE_EMAIL }}'
+
+          if [ -n "$REQUESTED_ENV" ] && [ "$REQUESTED_ENV" != "$TARGET_ENV" ]; then
+            echo "::warning::Unsupported environment '$REQUESTED_ENV'. Fallback to '$TARGET_ENV'."
+          fi
 
           if echo "$NOTIFY_EMAILS" | jq -e 'type == "array" and length == 0' > /dev/null; then
             if [ -n "$FALLBACK_EMAIL" ]; then
@@ -61,7 +67,7 @@ jobs:
             --arg status "${{ inputs.status }}" \
             --arg repository "${{ github.repository }}" \
             --arg branch "${{ github.ref_name }}" \
-            --arg environment "${{ inputs.environment }}" \
+            --arg environment "$TARGET_ENV" \
             --arg actor "${{ github.actor }}" \
             --arg run_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --arg summary "${{ inputs.summary }}" \
