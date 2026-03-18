@@ -84,12 +84,14 @@ jobs:
   notify-sonar:
     needs: sonarcloud
     if: ${{ always() }}
+    environment: RESPONSIBLE_EMAIL
     uses: ./.github/workflows/notify-pa.yml
     with:
       event_type: security_scan
       status: ${{ needs.sonarcloud.result == 'success' && 'success' || needs.sonarcloud.result == 'failure' && 'failure' || 'warning' }}
+      environment: prod
       summary: "SonarCloud scan completed - ${{ needs.sonarcloud.result }}"
-      notify_emails: ${{ format('["{0}"]', vars.RESPONSIBLE_EMAIL) }}
+      notify_emails: ${{ vars.RESPONSIBLE_EMAIL != '' && format('["{0}"]', vars.RESPONSIBLE_EMAIL) || '[]' }}
       details_json: '{"scan_tool":"sonarcloud","commit_sha":"${{ github.sha }}"}'
     secrets:
       PA_WEBHOOK_URL: ${{ secrets.PA_WEBHOOK_URL }}
