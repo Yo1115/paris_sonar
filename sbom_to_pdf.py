@@ -177,6 +177,7 @@ class SbomPDF(FPDF):
         self.set_auto_page_break(auto=True, margin=18)
         self.set_margins(20, 18, 20)
         self._total_pages = 0
+        self._table_header_meta = None
 
     # 頁眉 / 頁尾
     def header(self):
@@ -188,8 +189,18 @@ class SbomPDF(FPDF):
         self.set_text_color(*C_MUTED)
         self.cell(0, 5, f"{self.page_no()} / {{nb}}", align="C")
 
+    def _usable_bottom(self) -> float:
+        return self.h - self.b_margin
+
+    def ensure_space(self, needed_height: float) -> bool:
+        if self.get_y() + needed_height > self._usable_bottom():
+            self.add_page()
+            return True
+        return False
+
     # 工具方法
     def h_rule(self, color=C_DIVIDER, thickness=0.3, space_before=4, space_after=4):
+        self.ensure_space(space_before + space_after + 2)
         self.ln(space_before)
         self.set_draw_color(*color)
         self.set_line_width(thickness)
@@ -198,6 +209,7 @@ class SbomPDF(FPDF):
         self.ln(space_after)
 
     def section_title(self, text: str):
+        self.ensure_space(12)
         self.set_font("TC", style="B", size=13)
         self.set_text_color(*C_PRIMARY)
         self.ln(1)
@@ -205,6 +217,7 @@ class SbomPDF(FPDF):
         self.ln(1)
 
     def sub_title(self, text: str):
+        self.ensure_space(10)
         self.set_font("TC", style="B", size=10)
         self.set_text_color(*C_ACCENT)
         self.ln(1)
@@ -212,6 +225,8 @@ class SbomPDF(FPDF):
         self.ln(1)
 
     def table_header(self, cols: list, widths: list):
+        self._table_header_meta = (list(cols), list(widths))
+        self.ensure_space(8)
         self.set_fill_color(*C_TH_BG)
         self.set_draw_color(*C_BORDER)
         self.set_text_color(*C_PRIMARY)
@@ -242,6 +257,12 @@ class SbomPDF(FPDF):
             cell_heights.append(lines * line_height + 3)
         row_h = max(cell_heights)
 
+        if self.get_y() + row_h > self._usable_bottom():
+            self.add_page()
+            if self._table_header_meta:
+                cols, header_widths = self._table_header_meta
+                self.table_header(cols, header_widths)
+
         x0, y0 = self.get_x(), self.get_y()
 
         for i, (text, w) in enumerate(zip(cells, widths)):
@@ -261,16 +282,23 @@ class SbomPDF(FPDF):
         if not text:
             return 1
         self.set_font("TC", size=8)
-        words = text.split(" ")
-        lines, cur = 1, ""
-        for word in words:
-            test = (cur + " " + word).strip()
-            if self.get_string_width(test) > w and cur:
-                lines += 1
-                cur = word
-            else:
-                cur = test
-        return lines
+        total_lines = 0
+        paragraphs = text.splitlines() or [""]
+        for para in paragraphs:
+            if not para:
+                total_lines += 1
+                continue
+            line_count = 1
+            line_width = 0
+            for ch in para:
+                ch_w = self.get_string_width(ch)
+                if line_width + ch_w <= w:
+                    line_width += ch_w
+                else:
+                    line_count += 1
+                    line_width = ch_w
+            total_lines += line_count
+        return max(total_lines, 1)
 
     def code_block(self, lines: list):
         """等寬文字區塊（依賴樹用）。"""
@@ -282,17 +310,27 @@ class SbomPDF(FPDF):
         line_h = 5
         padding = 3
         block_w = self.w - self.l_margin - self.r_margin
-        block_h = len(lines) * line_h + padding * 2
+        idx = 0
+        while idx < len(lines):
+            # Ensure at least one line can be rendered in current page.
+            self.ensure_space(line_h + padding * 2)
+            available_h = self._usable_bottom() - self.get_y()
+            capacity = int((available_h - padding * 2) // line_h)
+            capacity = max(capacity, 1)
+            chunk = lines[idx:idx + capacity]
+            block_h = len(chunk) * line_h + padding * 2
 
-        x0, y0 = self.get_x(), self.get_y()
-        self.rect(x0, y0, block_w, block_h, style="DF")
+            x0, y0 = self.get_x(), self.get_y()
+            self.rect(x0, y0, block_w, block_h, style="DF")
 
-        self.set_xy(x0 + padding, y0 + padding)
-        for line in lines:
-            self.cell(block_w - padding * 2, line_h, line,
-                      new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-            self.set_x(x0 + padding)
-        self.ln(2)
+            self.set_xy(x0 + padding, y0 + padding)
+            for line in chunk:
+                self.cell(block_w - padding * 2, line_h, line,
+                          new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+                self.set_x(x0 + padding)
+
+            idx += len(chunk)
+            self.ln(2)
 
 
 # ── PDF 建立 ──────────────────────────────────────────────────────────────────
