@@ -83,17 +83,3 @@ jobs:
 
           echo "Timed out waiting for SonarCloud Quality Gate."
           exit 1
-
-  notify-sonar:
-    needs: sonarcloud
-    if: ${{ always() }}
-    uses: ./.github/workflows/notify-pa.yml
-    with:
-      event_type: security_scan
-      status: ${{ needs.sonarcloud.result == 'success' && 'success' || needs.sonarcloud.result == 'failure' && 'failure' || 'warning' }}
-      environment: prod
-      summary: "SonarCloud scan completed - ${{ needs.sonarcloud.result }}"
-      notify_emails: '[]'
-      details_json: '{"scan_tool":"sonarcloud","commit_sha":"${{ github.sha }}"}'
-    secrets:
-      PA_WEBHOOK_URL: ${{ secrets.PA_WEBHOOK_URL }}
