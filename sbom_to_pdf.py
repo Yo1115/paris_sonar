@@ -402,7 +402,7 @@ def build_pdf(data: dict, output_path: str):
 
     pdf.set_font("TC", size=8.5)
     pdf.set_text_color(*C_MUTED)
-    pdf.cell(0, 6, f"Repo：{repo_name}",
+    pdf.cell(0, 6, f"程式碼儲存庫：{repo_name}",
              new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.cell(0, 6, f"\u683c\u5f0f\uff1a{bom_format} {spec_ver}   |   \u6383\u63cf\u5de5\u5177\uff1a{tool_info}",
              new_x=XPos.LMARGIN, new_y=YPos.NEXT)
