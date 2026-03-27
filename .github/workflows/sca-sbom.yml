@@ -76,13 +76,31 @@ jobs:
         if: always()
         run: python sbom_to_pdf.py sbom.cdx.json sbom-report.pdf
 
+      - name: Rename report files with repo and timestamp
+        if: always()
+        run: |
+          REPO_NAME="${{ github.event.repository.name }}"
+          TIMESTAMP="$(date -u -d '+8 hours' +'%Y%m%d-%H%M')"
+
+          PDF_FILE="${REPO_NAME}-sbom-report-${TIMESTAMP}.pdf"
+          SBOM_FILE="${REPO_NAME}-sbom-cdx-${TIMESTAMP}.json"
+          SARIF_FILE="${REPO_NAME}-vuln-scan-${TIMESTAMP}.sarif"
+
+          mv sbom-report.pdf "$PDF_FILE"
+          mv sbom.cdx.json "$SBOM_FILE"
+          mv trivy-results.sarif "$SARIF_FILE"
+
+          echo "PDF_FILE=$PDF_FILE" >> "$GITHUB_ENV"
+          echo "SBOM_FILE=$SBOM_FILE" >> "$GITHUB_ENV"
+          echo "SARIF_FILE=$SARIF_FILE" >> "$GITHUB_ENV"
+
       - name: Upload security report artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: security-reports-${{ github.sha }}
           path: |
-            trivy-results.sarif
-            sbom.cdx.json
-            sbom-report.pdf
+            ${{ env.SARIF_FILE }}
+            ${{ env.SBOM_FILE }}
+            ${{ env.PDF_FILE }}
           retention-days: 90
