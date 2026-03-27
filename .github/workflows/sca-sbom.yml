@@ -63,6 +63,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Inject repo metadata into SBOM JSON
+        if: always()
+        run: |
+          python3 scripts/inject-sbom-metadata.py \
+            sbom.cdx.json \
+            "${{ github.repository }}" \
+            "${{ github.ref_name }}" \
+            "${{ github.sha }}"
+
       - name: Generate PDF report from SBOM JSON
         if: always()
         run: python sbom_to_pdf.py sbom.cdx.json sbom-report.pdf
