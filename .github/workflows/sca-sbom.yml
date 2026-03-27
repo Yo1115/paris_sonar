@@ -61,12 +61,12 @@ jobs:
         if: always()
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r .github/scripts/requirements-sbom.txt
 
       - name: Inject repo metadata into SBOM JSON
         if: always()
         run: |
-          python3 scripts/inject-sbom-metadata.py \
+          python3 .github/scripts/inject-sbom-metadata.py \
             sbom.cdx.json \
             "${{ github.repository }}" \
             "${{ github.ref_name }}" \
@@ -74,7 +74,7 @@ jobs:
 
       - name: Generate PDF report from SBOM JSON
         if: always()
-        run: python sbom_to_pdf.py sbom.cdx.json sbom-report.pdf
+        run: python .github/scripts/sbom_to_pdf.py sbom.cdx.json sbom-report.pdf
 
       - name: Rename report files with repo and timestamp
         if: always()
