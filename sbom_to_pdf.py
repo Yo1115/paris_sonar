@@ -350,6 +350,21 @@ def build_pdf(data: dict, output_path: str):
         t = tools[0]
         tool_info = (f"{t.get('name','')} {t.get('version','')} "
                      f"({t.get('manufacturer',{}).get('name','')})")
+    repo_name = "-"
+    properties = meta.get("properties", [])
+    if isinstance(properties, list):
+        for prop in properties:
+            if (
+                isinstance(prop, dict)
+                and prop.get("name") == "taitra:repo"
+                and str(prop.get("value", "")).strip()
+            ):
+                repo_name = str(prop.get("value")).strip()
+                break
+    if repo_name == "-":
+        component_name = meta.get("component", {}).get("name", "")
+        if isinstance(component_name, str) and component_name.strip() not in {"", "."}:
+            repo_name = component_name.strip()
 
     raw_components = data.get("components", [])
     lib_components = [c for c in raw_components if c.get("type") == "library"]
@@ -387,6 +402,8 @@ def build_pdf(data: dict, output_path: str):
 
     pdf.set_font("TC", size=8.5)
     pdf.set_text_color(*C_MUTED)
+    pdf.cell(0, 6, f"Repo：{repo_name}",
+             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.cell(0, 6, f"\u683c\u5f0f\uff1a{bom_format} {spec_ver}   |   \u6383\u63cf\u5de5\u5177\uff1a{tool_info}",
              new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.cell(0, 6, f"\u6383\u63cf\u6642\u9593\uff1a{scan_time}   |   \u7522\u751f\u65e5\u671f\uff1a{now_str}",
