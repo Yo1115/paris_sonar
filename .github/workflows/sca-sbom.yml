@@ -91,6 +91,7 @@ jobs:
           mv trivy-results.sarif "$SARIF_FILE"
 
           echo "PDF_FILE=$PDF_FILE" >> "$GITHUB_ENV"
+          echo "PDF_ARTIFACT=${REPO_NAME}-sbom-report-pdf-${TIMESTAMP}" >> "$GITHUB_ENV"
           echo "SBOM_FILE=$SBOM_FILE" >> "$GITHUB_ENV"
           echo "SARIF_FILE=$SARIF_FILE" >> "$GITHUB_ENV"
 
@@ -103,4 +104,12 @@ jobs:
             ${{ env.SARIF_FILE }}
             ${{ env.SBOM_FILE }}
             ${{ env.PDF_FILE }}
+          retention-days: 90
+
+      - name: Upload PDF report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PDF_ARTIFACT }}
+          path: ${{ env.PDF_FILE }}
           retention-days: 90
